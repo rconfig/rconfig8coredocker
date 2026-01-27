@@ -1,0 +1,20 @@
+# Database backups
+backup_*.sql
+backups/
+
+# Environment file (users create their own)
+.env
+
+# Docker volumes data (managed by Docker)
+data/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
