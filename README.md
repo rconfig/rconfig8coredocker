@@ -123,6 +123,12 @@ docker compose exec app supervisorctl status
 
 All services should show **RUNNING**.
 
+If you see an application setup screen or first-run errors, complete install:
+
+```bash
+docker compose exec app php artisan v8core:install
+```
+
 
 ### Change Admin Credentials
 
@@ -216,6 +222,28 @@ sleep 30 && docker compose restart app  # Wait and restart
 docker compose exec app php artisan horizon:status
 docker compose exec app supervisorctl restart horizon
 ```
+
+### Supervisor Socket Error
+
+**Symptoms:** `unix:///var/run/supervisor.sock no such file`
+
+```bash
+docker compose exec app supervisorctl status
+docker compose exec app ls -l /var/run/supervisor/supervisor.sock
+```
+
+If the socket is missing, rebuild so the updated supervisor config is used:
+
+```bash
+docker compose up -d --build
+```
+
+### Redis Bind Error
+
+**Symptoms:** `bind: Address already in use` for port `6379`
+
+Redis must only be managed by one process. This image uses Supervisor as the single
+process owner for Redis.
 
 ### Missing APP_KEY Error
 

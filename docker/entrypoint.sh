@@ -12,10 +12,6 @@ while ! nc -z $DB_HOST $DB_PORT; do
 done
 echo "✅ Database is ready!"
 
-echo "🔴 Starting Redis..."
-redis-server --daemonize yes --port 6379
-sleep 2
-
 # Create .env if it doesn't exist
 if [ ! -f /var/www/html/rconfig/.env ]; then
     echo "📝 Creating .env file from example..."
@@ -60,5 +56,5 @@ fi
 echo "🚀 Starting services..."
 echo "=========================================="
 
-# Start supervisor (which manages Apache, Redis, Horizon, and Scheduler)
-exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
+#Hand off to container CMD (supervisord by default)
+exec "$@"

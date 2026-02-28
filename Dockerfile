@@ -56,15 +56,18 @@ COPY --from=composer:2.4 /usr/bin/composer /usr/bin/composer
 # Install PHP dependencies (skip scripts to avoid database connection during build)
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --no-scripts --optimize-autoloader --no-interaction
 
-# Copy the supervisord configuration file
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Copy service configuration files
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/redis.conf /etc/redis/rconfig-redis.conf
 
 # Copy entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Create log directory and set permissions
-RUN mkdir -p /var/log && chown -R www-data:www-data /var/log
+# Create log and runtime directories
+RUN mkdir -p /var/log /var/run/supervisor /var/run/redis /var/lib/redis \
+    && chown -R www-data:www-data /var/log \
+    && chown -R redis:redis /var/run/redis /var/lib/redis
 
 # Set up permissions for storage and cache
 RUN mkdir -p storage/framework/{sessions,views,cache} \
@@ -80,4 +83,4 @@ EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Start supervisord
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]

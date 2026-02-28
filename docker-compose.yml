@@ -16,7 +16,7 @@ services:
       - DB_DATABASE=${DB_DATABASE:-rconfig}
       - DB_USERNAME=${DB_USERNAME:-rconfig_user}
       - DB_PASSWORD=${DB_PASSWORD:-rconfig_pass}
-      - REDIS_HOST=127.0.0.1
+      - REDIS_HOST=redis
       - REDIS_PASSWORD=null
       - REDIS_PORT=6379
       - QUEUE_CONNECTION=redis
@@ -27,6 +27,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 80"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     networks:
       - rconfig_network
 
@@ -52,8 +60,25 @@ services:
     networks:
       - rconfig_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: rconfig_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - redis_data:/data
+    networks:
+      - rconfig_network
+
 volumes:
   db_data:
+  redis_data:
   storage_data:
   bootstrap_cache:
 
