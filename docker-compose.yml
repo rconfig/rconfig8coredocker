@@ -23,6 +23,7 @@ services:
     volumes:
       # Persistent storage
       - storage_data:/var/www/html/rconfig/storage
+      - .env:/var/www/html/rconfig/.env
       - bootstrap_cache:/var/www/html/rconfig/bootstrap/cache
     depends_on:
       db:
