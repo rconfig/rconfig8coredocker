@@ -2,11 +2,15 @@
 # Official Docker image for rConfig V8 Core open-source edition
 FROM php:8.4-apache
 
+# Avoid interactive apt prompts and disable xz sandboxing in constrained build environments
+ENV DEBIAN_FRONTEND=noninteractive \
+    XZ_DEFAULTS=--no-sandbox
+
 # Set user ID for www-data to 1000
 RUN usermod -u 1000 www-data
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
