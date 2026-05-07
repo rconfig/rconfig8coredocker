@@ -1,5 +1,5 @@
 # rConfig V8 Core - Docker Image
-FROM php:8.4-apache
+FROM php:8.4-apache-bookworm
 
 # Set user ID for www-data to 1000
 RUN usermod -u 1000 www-data
