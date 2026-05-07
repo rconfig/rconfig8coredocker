@@ -1,17 +1,10 @@
 # rConfig V8 Core - Docker Image
-# Official Docker image for rConfig V8 Core open-source edition
-FROM php:8.4-apache-bookworm
-
-# Avoid interactive apt prompts and disable xz sandboxing in constrained build environments
-ENV DEBIAN_FRONTEND=noninteractive \
-    XZ_DEFAULTS=--no-sandbox \
-    XZ_OPT=--no-sandbox
+FROM php:8.4-apache
 
 # Set user ID for www-data to 1000
 RUN usermod -u 1000 www-data
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
@@ -33,15 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     snmp \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-configure ldap --with-libdir=lib/$(dpkg-architecture --query DEB_BUILD_MULTIARCH) \
-    && docker-php-ext-install gd zip pdo pdo_mysql pcntl snmp ldap curl mbstring gmp intl \
+    && docker-php-ext-configure zip \
+    && docker-php-ext-install gd zip pdo pdo_mysql pcntl snmp ldap curl mbstring fileinfo gmp intl \
     && pecl install xdebug \
     && docker-php-ext-enable xdebug \
     && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && docker-php-ext-enable redis
 
-# Enable Apache rewrite module
 RUN a2enmod rewrite
 
 # Create application directory
