@@ -1,10 +1,11 @@
 # rConfig V8 Core - Docker Image
 # Official Docker image for rConfig V8 Core open-source edition
-FROM php:8.4-apache
+FROM php:8.4-apache-bookworm
 
 # Avoid interactive apt prompts and disable xz sandboxing in constrained build environments
 ENV DEBIAN_FRONTEND=noninteractive \
-    XZ_DEFAULTS=--no-sandbox
+    XZ_DEFAULTS=--no-sandbox \
+    XZ_OPT=--no-sandbox
 
 # Set user ID for www-data to 1000
 RUN usermod -u 1000 www-data
