@@ -129,6 +129,10 @@ If you see an application setup screen or first-run errors, complete install:
 docker compose exec app php artisan v8core:install
 ```
 
+Docker persists install state in the storage volume. After `php artisan v8core:install`,
+the container will detect the installed database and create `storage/.installed`
+automatically.
+
 
 ### Change Admin Credentials
 
@@ -249,6 +253,12 @@ process owner for Redis.
 
 **Symptoms:** "No application encryption key has been specified"
 
+For an existing installation, restore the original `.env` file or original
+`APP_KEY`. Do not generate a new `APP_KEY` for an existing database, because
+encrypted values such as device credentials may no longer decrypt.
+
+For a new installation only:
+
 ```bash
 docker compose exec app php artisan key:generate --force
 docker compose restart app
@@ -339,11 +349,14 @@ Follows rConfig v8 Core license.
 
 **Symptoms:** "No application encryption key has been specified"
 
-**Fix:**
+For an existing installation, restore the original `.env` file or original
+`APP_KEY`. Only generate a new key for a brand-new install with no existing
+encrypted data.
 
 ```bash
 docker compose exec app php artisan key:generate --force
 docker compose restart app
 ```
 
-**Note:** The entrypoint automatically generates this on first start, but if you encounter this error, run the command above.
+**Note:** The entrypoint automatically generates this on first start when
+`.env` is present but `APP_KEY` is empty.

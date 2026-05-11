@@ -21,7 +21,7 @@ fi
 # Run composer dump-autoload to complete package discovery (skipped during build)
 echo "🔧 Running composer autoload dump..."
 cd /var/www/html/rconfig
-composer dump-autoload --optimize 2>/dev/null || echo "   (Autoload already optimized)"
+composer dump-autoload --optimize --no-scripts 2>/dev/null || echo "   (Autoload already optimized)"
 
 if ! grep -q "APP_KEY=base64:" /var/www/html/rconfig/.env; then
     echo "🔑 Generating application key..."
@@ -35,6 +35,53 @@ chown -R www-data:www-data /var/www/html/rconfig/bootstrap/cache
 chmod -R 775 /var/www/html/rconfig/storage
 chmod -R 775 /var/www/html/rconfig/bootstrap/cache
 
+# Persist the install marker in storage because the application root is rebuilt
+# with the image, while storage is a Docker volume.
+INSTALL_MARKER=/var/www/html/rconfig/.installed
+PERSISTED_INSTALL_MARKER=/var/www/html/rconfig/storage/.installed
+
+is_database_installed() {
+    php <<'PHP'
+<?php
+$host = getenv('DB_HOST') ?: 'db';
+$port = getenv('DB_PORT') ?: '3306';
+$database = getenv('DB_DATABASE') ?: 'rconfig';
+$username = getenv('DB_USERNAME') ?: 'rconfig_user';
+$password = getenv('DB_PASSWORD') ?: '';
+
+try {
+    $pdo = new PDO("mysql:host={$host};port={$port};dbname={$database}", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+
+    $count = (int) $pdo->query('select count(*) from migrations')->fetchColumn();
+    exit($count > 0 ? 0 : 1);
+} catch (Throwable $e) {
+    exit(1);
+}
+PHP
+}
+
+if [ -f "$INSTALL_MARKER" ] && [ ! -L "$INSTALL_MARKER" ] && [ ! -f "$PERSISTED_INSTALL_MARKER" ]; then
+    echo "💾 Persisting existing installation marker..."
+    cp "$INSTALL_MARKER" "$PERSISTED_INSTALL_MARKER"
+fi
+
+if [ ! -f "$PERSISTED_INSTALL_MARKER" ] && is_database_installed; then
+    echo "💾 Existing installation detected from database."
+    touch "$PERSISTED_INSTALL_MARKER"
+fi
+
+if [ ! -L "$INSTALL_MARKER" ]; then
+    rm -f "$INSTALL_MARKER"
+    ln -s "$PERSISTED_INSTALL_MARKER" "$INSTALL_MARKER"
+fi
+
+chown -h www-data:www-data "$INSTALL_MARKER"
+if [ -f "$PERSISTED_INSTALL_MARKER" ]; then
+    chown www-data:www-data "$PERSISTED_INSTALL_MARKER"
+fi
+
 if [ -f /var/www/html/rconfig/storage/oauth-private.key ]; then
     echo "🔐 Setting OAuth key permissions..."
     chmod 600 /var/www/html/rconfig/storage/oauth-private.key
@@ -44,10 +91,9 @@ if [ -f /var/www/html/rconfig/storage/oauth-private.key ]; then
 fi
 
 # Check if first-time installation
-if [ ! -f /var/www/html/rconfig/.installed ]; then
+if [ ! -f "$PERSISTED_INSTALL_MARKER" ]; then
     echo "⚠️  First-time installation detected."
     echo "   Please run: docker compose exec app php artisan v8core:install"
-    touch /var/www/html/rconfig/.installed
 else
     echo "🔄 Running migrations..."
     php artisan migrate --force 2>/dev/null || echo "   (No new migrations)"
