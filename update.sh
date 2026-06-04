@@ -52,6 +52,23 @@ $DC up -d
 echo "⏳ Waiting for containers to start..."
 sleep 15
 
+# Clear stale compiled caches from the previous version before any artisan runs.
+# A cached bootstrap/cache/config.php can reference removed providers and crash
+# artisan on boot, so it must be deleted directly (artisan can't boot to clear it).
+echo "🗑️  Removing stale compiled caches..."
+$DC exec app rm -f bootstrap/cache/config.php bootstrap/cache/packages.php bootstrap/cache/services.php
+
+ # Run migrations
+ echo "🔄 Running database migrations..."
+ $DC exec app php artisan migrate --force
+ 
+ # Clear caches
+ echo "🗑️  Clearing caches..."
+ $DC exec app php artisan cache:clear
+ $DC exec app php artisan config:clear
+ $DC exec app php artisan view:clear
+
+
 # Run migrations
 echo "🔄 Running database migrations..."
 $DC exec app php artisan migrate --force
