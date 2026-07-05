@@ -19,8 +19,8 @@ cd rconfig8coredocker
 cp .env.example .env
 vi .env  # Edit with your settings
 
-# 3. Build and start
-docker compose build
+# 3. Pull the prebuilt image and start
+docker compose pull
 docker compose up -d
 
 # 4. Install rConfig
@@ -75,21 +75,28 @@ vi .env
 **Required settings:**
 
 ```env
-APP_URL=http://your-server-ip:8080
-APP_DIR_PATH=/var/www/html/rconfig
+# Which prebuilt release to run (see Docker Hub tags). Pin it for production.
+RCONFIG_VERSION=8.3.0
 
-DB_HOST=db
-DB_PORT=3306
+APP_URL=http://your-server-ip:8080
+
 DB_DATABASE=rconfig
 DB_USERNAME=rconfig_user
 DB_PASSWORD=your_secure_password
-
+MYSQL_ROOT_PASSWORD=your_secure_root_password
 ```
 
-### Step 3: Build and Start
+> Storage (device config backups, logs, keys) persists in the `storage_data`
+> Docker volume by default. To keep it on a visible host path instead, switch to
+> the bind mount option in `docker-compose.yml`.
+
+### Step 3: Pull and Start
+
+The image is prebuilt and published on Docker Hub, so there is nothing to
+compile. `RCONFIG_VERSION` in your `.env` selects which release to run.
 
 ```bash
-docker compose build
+docker compose pull
 docker compose up -d
 ```
 
@@ -167,6 +174,9 @@ docker compose restart app
 
 ## 🔄 Updates
 
+Upgrading pulls a newer prebuilt image, so there is no rebuild. The container
+rebuilds its own caches on start, so no manual cache clear is needed.
+
 ### Automated (Recommended)
 
 ```bash
@@ -177,12 +187,39 @@ chmod +x update.sh
 ### Manual
 
 ```bash
-docker compose down
-docker compose build --no-cache
+# 1. Set RCONFIG_VERSION in .env to the release you want (or leave "latest").
+# 2. Pull and restart:
+docker compose pull
+docker compose up -d
+
+# 3. Apply any new database migrations:
+docker compose exec app php artisan migrate --force
+```
+
+Always back up the database before upgrading (see Backup below).
+
+### Upgrading from a build-based install
+
+Earlier versions of this kit built the image locally (`docker compose build`).
+Moving to the prebuilt image keeps all your data, because the volume names are
+unchanged:
+
+```bash
+# 1. Pull the latest kit (this compose file, .env.example, update.sh).
+git pull
+
+# 2. Add a version pin to your existing .env (or set it to latest):
+echo "RCONFIG_VERSION=8.3.0" >> .env
+
+# 3. Pull the image and restart. Your db_data and storage_data volumes,
+#    and your .env with its APP_KEY, carry over untouched.
+docker compose pull
 docker compose up -d
 docker compose exec app php artisan migrate --force
-docker compose exec app php artisan rconfig:clear-all
 ```
+
+The old locally built image and the now-unused `bootstrap_cache` volume can be
+cleaned up afterwards with `docker image prune` and `docker volume rm`.
 
 ---
 
@@ -236,10 +273,10 @@ docker compose exec app supervisorctl status
 docker compose exec app ls -l /var/run/supervisor/supervisor.sock
 ```
 
-If the socket is missing, rebuild so the updated supervisor config is used:
+If the socket is missing, recreate the container so it starts cleanly:
 
 ```bash
-docker compose up -d --build
+docker compose up -d --force-recreate app
 ```
 
 ### Redis Bind Error
@@ -312,7 +349,8 @@ docker compose down && docker compose up -d
 ## ❓ FAQ
 
 **Q: Do I need to clone the main rconfig repo?**  
-A: No! Dockerfile clones it automatically.
+A: No. You run a prebuilt image from Docker Hub (`rconfig/rconfig`). You only
+clone this kit for the `docker-compose.yml` and `.env`.
 
 **Q: Can I run multiple instances?**  
 A: Yes! Use different directories and ports.

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # rConfig V8 Core Docker Update Script
-# Updates rConfig to latest version from GitHub
+# Pulls the target prebuilt image and applies migrations. No local rebuild.
 
 set -e
 
@@ -20,6 +20,14 @@ else
     exit 1
 fi
 
+# Show the version that will be pulled (from .env, defaults to latest).
+if [ -f .env ]; then
+    VERSION=$(grep -E '^RCONFIG_VERSION=' .env | cut -d= -f2)
+fi
+echo "📦 Target image: rconfig/rconfig:${VERSION:-latest}"
+echo "   (edit RCONFIG_VERSION in .env to change this)"
+echo ""
+
 # Backup database
 read -p "📦 Create database backup before updating? (recommended) [Y/n]: " -n 1 -r
 echo
@@ -35,51 +43,24 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     echo ""
 fi
 
-# Stop containers
-echo "🛑 Stopping containers..."
-$DC down
+# Pull the target image
+echo "⬇️  Pulling image..."
+$DC pull
 
-# Rebuild images (this will clone latest rConfig from GitHub)
-echo "🔨 Rebuilding Docker images with latest rConfig..."
-echo "   (This will clone the latest code from GitHub)"
-$DC build --no-cache
-
-# Start containers
+# Recreate the app container on the new image. The entrypoint rebuilds the
+# config/route/view caches on start, so no manual cache clear is required.
 echo "🚀 Starting containers..."
 $DC up -d
 
-# Wait for containers to be ready
+# Wait for the app to come back up
 echo "⏳ Waiting for containers to start..."
 sleep 15
-
-# Clear stale compiled caches from the previous version before any artisan runs.
-# A cached bootstrap/cache/config.php can reference removed providers and crash
-# artisan on boot, so it must be deleted directly (artisan can't boot to clear it).
-echo "🗑️  Removing stale compiled caches..."
-$DC exec app rm -f bootstrap/cache/config.php bootstrap/cache/packages.php bootstrap/cache/services.php
-
- # Run migrations
- echo "🔄 Running database migrations..."
- $DC exec app php artisan migrate --force
- 
- # Clear caches
- echo "🗑️  Clearing caches..."
- $DC exec app php artisan cache:clear
- $DC exec app php artisan config:clear
- $DC exec app php artisan view:clear
-
 
 # Run migrations
 echo "🔄 Running database migrations..."
 $DC exec app php artisan migrate --force
 
-# Clear caches
-echo "🗑️  Clearing caches..."
-$DC exec app php artisan cache:clear
-$DC exec app php artisan config:clear
-$DC exec app php artisan view:clear
-
-# Restart Horizon
+# Reload Horizon workers so they run the new code
 echo "🔄 Restarting Horizon..."
 $DC exec app php artisan horizon:terminate
 

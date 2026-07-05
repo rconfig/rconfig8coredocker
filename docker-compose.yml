@@ -1,8 +1,9 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Prebuilt multi-arch image from Docker Hub. Pin the version in .env
+    # (RCONFIG_VERSION); it falls back to the latest stable release.
+    # GHCR mirror: ghcr.io/rconfig/rconfig:${RCONFIG_VERSION:-latest}
+    image: rconfig/rconfig:${RCONFIG_VERSION:-latest}
     container_name: rconfig_app
     restart: unless-stopped
     ports:
@@ -21,10 +22,15 @@ services:
       - REDIS_PORT=6379
       - QUEUE_CONNECTION=redis
     volumes:
-      # Persistent storage
+      # Persistent application storage (device config backups, logs, keys).
+      # Default: a Docker-managed named volume, seeded automatically on first run.
       - storage_data:/var/www/html/rconfig/storage
-      - .env:/var/www/html/rconfig/.env
-      - bootstrap_cache:/var/www/html/rconfig/bootstrap/cache
+      # Prefer storage on a visible host path instead? Comment the line above
+      # and uncomment the bind mount below (the entrypoint seeds an empty dir):
+      # - ./storage:/var/www/html/rconfig/storage
+      # The .env file is bind mounted so key:generate and v8core:install can
+      # write APP_KEY back to your host copy.
+      - ./.env:/var/www/html/rconfig/.env
     depends_on:
       db:
         condition: service_healthy
@@ -49,7 +55,7 @@ services:
       MYSQL_USER: ${DB_USERNAME:-rconfig_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-rconfig_pass}
     ports:
-      - "3307:3306"
+      - "${DB_PORT_HOST:-3307}:3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -81,7 +87,6 @@ volumes:
   db_data:
   redis_data:
   storage_data:
-  bootstrap_cache:
 
 networks:
   rconfig_network:
