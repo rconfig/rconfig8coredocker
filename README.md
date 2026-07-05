@@ -76,7 +76,7 @@ vi .env
 
 ```env
 # Which prebuilt release to run (see Docker Hub tags). Pin it for production.
-RCONFIG_VERSION=8.3.0
+RCONFIG_VERSION=8.2.7
 
 APP_URL=http://your-server-ip:8080
 
@@ -209,7 +209,7 @@ unchanged:
 git pull
 
 # 2. Add a version pin to your existing .env (or set it to latest):
-echo "RCONFIG_VERSION=8.3.0" >> .env
+echo "RCONFIG_VERSION=8.2.7" >> .env
 
 # 3. Pull the image and restart. Your db_data and storage_data volumes,
 #    and your .env with its APP_KEY, carry over untouched.
